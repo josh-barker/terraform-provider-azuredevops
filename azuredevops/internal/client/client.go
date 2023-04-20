@@ -26,7 +26,9 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/serviceendpoint"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/taskagent"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/workitemtracking"
+	v7api "github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/utils/pipelineschecksextras"
+	pipelineschecksv7 "github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/pipelineschecksextrasv7"
 	"github.com/microsoft/terraform-provider-azuredevops/version"
 )
 
@@ -47,6 +49,7 @@ type AggregatedClient struct {
 	OperationsClient              operations.Client
 	V5PipelinesChecksClient       v5pipelineschecks.Client
 	V5PipelinesChecksClientExtras pipelineschecksextras.Client
+	V7PipelinesChecksClientExtras pipelineschecksv7.Client
 	PolicyClient                  policy.Client
 	ReleaseClient                 release.Client
 	ServiceEndpointClient         serviceendpoint.Client
@@ -76,6 +79,7 @@ func GetAzdoClient(azdoPAT string, organizationURL string, tfVersion string) (*A
 	setUserAgent(connection, tfVersion)
 
 	v5Connection := v5api.NewPatConnection(organizationURL, azdoPAT)
+	v7connection := v7api.NewPatConnection(organizationURL, azdoPAT)
 
 	// client for these APIs (includes CRUD for AzDO projects...):
 	//	https://docs.microsoft.com/en-us/rest/api/azure/devops/core/?view=azure-devops-rest-5.1
@@ -188,6 +192,12 @@ func GetAzdoClient(azdoPAT string, organizationURL string, tfVersion string) (*A
 		return nil, err
 	}
 
+	v7PipelinesChecksClientExtras, err := pipelineschecksv7.NewClient(ctx, v7connection)
+	if err != nil {
+		log.Printf("getAzdoClient(): pipelineschecksextras.NewClient failed.")
+		return nil, err
+	}
+
 	aggregatedClient := &AggregatedClient{
 		OrganizationURL:               organizationURL,
 		CoreClient:                    coreClient,
@@ -198,6 +208,7 @@ func GetAzdoClient(azdoPAT string, organizationURL string, tfVersion string) (*A
 		OperationsClient:              operationsClient,
 		V5PipelinesChecksClient:       v5PipelinesChecksClient,
 		V5PipelinesChecksClientExtras: v5PipelinesChecksClientExtras,
+		V7PipelinesChecksClientExtras: v7PipelinesChecksClientExtras,
 		PolicyClient:                  policyClient,
 		ReleaseClient:                 releaseClient,
 		ServiceEndpointClient:         serviceEndpointClient,

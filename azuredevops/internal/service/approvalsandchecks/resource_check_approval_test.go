@@ -12,10 +12,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/pipelineschecks"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/pipelineschecks"
 	"github.com/microsoft/terraform-provider-azuredevops/azdosdkmocks"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/client"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/utils/converter"
+	pipelineschecksv7 "github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/pipelineschecksextrasv7"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +43,7 @@ var ApprovalCheckSettings = map[string]interface{}{
 	"approvers":                 approvers,
 }
 
-var ApprovalCheckTest = pipelineschecks.CheckConfiguration{
+var ApprovalCheckTest = pipelineschecks.GenericCheckConfiguration{
 	Id:       &ApprovalCheckID,
 	Type:     approvalAndCheckType.Approval,
 	Settings: ApprovalCheckSettings,
@@ -71,13 +72,13 @@ func TestCheckApproval_Create_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenCheckApproval(resourceData, &ApprovalCheckTest, ApprovalCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.AddCheckConfigurationArgs{Configuration: &ApprovalCheckTest, Project: &ApprovalCheckProjectID}
+	expectedArgs := pipelineschecksv7.AddGenericCheckConfigurationArgs{Configuration: &ApprovalCheckTest, Project: &ApprovalCheckProjectID}
 	pipelinesChecksClient.
 		EXPECT().
-		AddCheckConfiguration(clients.Ctx, expectedArgs).
+		AddGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("AddCheckConfiguration() Failed")).
 		Times(1)
 
@@ -94,17 +95,18 @@ func TestCheckApproval_Read_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenCheckApproval(resourceData, &ApprovalCheckTest, ApprovalCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientExtrasV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.GetCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.GetGenericCheckConfigurationArgs{
 		Id:      ApprovalCheckTest.Id,
 		Project: &ApprovalCheckProjectID,
+		Expand:  &pipelineschecks.CheckConfigurationExpandParameterValues.Settings,
 	}
 
 	pipelinesChecksClient.
 		EXPECT().
-		GetCheckConfiguration(clients.Ctx, expectedArgs).
+		GetGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("GetServiceEndpoint() Failed")).
 		Times(1)
 
@@ -121,17 +123,17 @@ func TestCheckApproval_Delete_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenCheckApproval(resourceData, &ApprovalCheckTest, ApprovalCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.DeleteCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.DeleteGenericCheckConfigurationArgs{
 		Id:      ApprovalCheckTest.Id,
 		Project: &ApprovalCheckProjectID,
 	}
 
 	pipelinesChecksClient.
 		EXPECT().
-		DeleteCheckConfiguration(clients.Ctx, expectedArgs).
+		DeleteGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(errors.New("DeleteServiceEndpoint() Failed")).
 		Times(1)
 
@@ -148,10 +150,10 @@ func TestCheckApproval_Update_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenCheckApproval(resourceData, &ApprovalCheckTest, ApprovalCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.UpdateCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.UpdateGenericCheckConfigurationArgs{
 		Project:       &ApprovalCheckProjectID,
 		Configuration: &ApprovalCheckTest,
 		Id:            &ApprovalCheckID,
@@ -159,7 +161,7 @@ func TestCheckApproval_Update_DoesNotSwallowError(t *testing.T) {
 
 	pipelinesChecksClient.
 		EXPECT().
-		UpdateCheckConfiguration(clients.Ctx, expectedArgs).
+		UpdateGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("UpdateServiceEndpoint() Failed")).
 		Times(1)
 

@@ -13,9 +13,10 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/pipelineschecks"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/pipelineschecks"
 	"github.com/microsoft/terraform-provider-azuredevops/azdosdkmocks"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/client"
+	pipelineschecksv7 "github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/pipelineschecksextrasv7"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +43,7 @@ var branchControlCheckSettings = map[string]interface{}{
 	"inputs":        branchControlInputs,
 }
 
-var branchControlCheckTest = pipelineschecks.CheckConfiguration{
+var branchControlCheckTest = pipelineschecks.GenericCheckConfiguration{
 	Id:       &branchControlCheckID,
 	Type:     approvalAndCheckType.BranchProtection,
 	Settings: branchControlCheckSettings,
@@ -70,13 +71,13 @@ func TestCheckBranchControl_Create_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenBranchControlCheck(resourceData, &branchControlCheckTest, branchControlCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.AddCheckConfigurationArgs{Configuration: &branchControlCheckTest, Project: &branchControlCheckProjectID}
+	expectedArgs := pipelineschecksv7.AddGenericCheckConfigurationArgs{Configuration: &branchControlCheckTest, Project: &branchControlCheckProjectID}
 	pipelinesChecksClient.
 		EXPECT().
-		AddCheckConfiguration(clients.Ctx, expectedArgs).
+		AddGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("AddCheckConfiguration() Failed")).
 		Times(1)
 
@@ -93,17 +94,18 @@ func TestCheckBranchControl_Read_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenBranchControlCheck(resourceData, &branchControlCheckTest, branchControlCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientExtrasV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.GetCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.GetGenericCheckConfigurationArgs{
 		Id:      branchControlCheckTest.Id,
 		Project: &branchControlCheckProjectID,
+		Expand:  &pipelineschecks.CheckConfigurationExpandParameterValues.Settings,
 	}
 
 	pipelinesChecksClient.
 		EXPECT().
-		GetCheckConfiguration(clients.Ctx, expectedArgs).
+		GetGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("GetServiceEndpoint() Failed")).
 		Times(1)
 
@@ -120,17 +122,17 @@ func TestCheckBranchControl_Delete_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenBranchControlCheck(resourceData, &branchControlCheckTest, branchControlCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.DeleteCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.DeleteGenericCheckConfigurationArgs{
 		Id:      branchControlCheckTest.Id,
 		Project: &branchControlCheckProjectID,
 	}
 
 	pipelinesChecksClient.
 		EXPECT().
-		DeleteCheckConfiguration(clients.Ctx, expectedArgs).
+		DeleteGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(errors.New("DeleteServiceEndpoint() Failed")).
 		Times(1)
 
@@ -147,10 +149,10 @@ func TestCheckBranchControl_Update_DoesNotSwallowError(t *testing.T) {
 	resourceData := schema.TestResourceDataRaw(t, r.Schema, nil)
 	flattenBranchControlCheck(resourceData, &branchControlCheckTest, branchControlCheckProjectID)
 
-	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV5(ctrl)
-	clients := &client.AggregatedClient{V5PipelinesChecksClient: pipelinesChecksClient, Ctx: context.Background()}
+	pipelinesChecksClient := azdosdkmocks.NewPipelinesChecksClientV7(ctrl)
+	clients := &client.AggregatedClient{V7PipelinesChecksClientExtras: pipelinesChecksClient, Ctx: context.Background()}
 
-	expectedArgs := pipelineschecks.UpdateCheckConfigurationArgs{
+	expectedArgs := pipelineschecksv7.UpdateGenericCheckConfigurationArgs{
 		Project:       &branchControlCheckProjectID,
 		Configuration: &branchControlCheckTest,
 		Id:            &branchControlCheckID,
@@ -158,7 +160,7 @@ func TestCheckBranchControl_Update_DoesNotSwallowError(t *testing.T) {
 
 	pipelinesChecksClient.
 		EXPECT().
-		UpdateCheckConfiguration(clients.Ctx, expectedArgs).
+		UpdateGenericCheckConfiguration(clients.Ctx, expectedArgs).
 		Return(nil, errors.New("UpdateServiceEndpoint() Failed")).
 		Times(1)
 

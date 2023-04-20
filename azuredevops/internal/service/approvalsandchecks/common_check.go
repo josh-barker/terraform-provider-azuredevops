@@ -8,19 +8,20 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/pipelineschecks"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/pipelineschecks"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/client"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/utils"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/utils/converter"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/internal/utils/tfhelper"
+	pipelineschecksv7 "github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/pipelineschecksextrasv7"
 )
 
 // NOTE: In theory the API should accept "agentpool" as well, but the API client requires a project ID
 // so it doesn't seem to work and the website UI doesn't have it available
 var targetResourceTypes = []string{"endpoint", "environment", "queue", "repository", "securefile", "variablegroup"}
 
-type flatFunc func(d *schema.ResourceData, check *pipelineschecks.CheckConfiguration, projectID string) error
-type expandFunc func(d *schema.ResourceData) (*pipelineschecks.CheckConfiguration, string, error)
+type flatFunc func(d *schema.ResourceData, check *pipelineschecks.GenericCheckConfiguration, projectID string) error
+type expandFunc func(d *schema.ResourceData) (*pipelineschecks.GenericCheckConfiguration, string, error)
 
 type approvalAndCheckTypes struct {
 	Approval         *pipelineschecks.CheckType
@@ -83,10 +84,10 @@ func genBaseCheckResource(f flatFunc, e expandFunc) *schema.Resource {
 }
 
 // doBaseExpansion performs the expansion for the 'base' attributes that are defined in the schema, above
-func doBaseExpansion(d *schema.ResourceData, checkType *pipelineschecks.CheckType, settings map[string]interface{}, timeout *int) (*pipelineschecks.CheckConfiguration, string, error) {
+func doBaseExpansion(d *schema.ResourceData, checkType *pipelineschecks.CheckType, settings map[string]interface{}, timeout *int) (*pipelineschecks.GenericCheckConfiguration, string, error) {
 	projectID := d.Get("project_id").(string)
 
-	taskCheck := pipelineschecks.CheckConfiguration{
+	taskCheck := pipelineschecks.GenericCheckConfiguration{
 		Type:     checkType,
 		Settings: settings,
 		Resource: &pipelineschecks.Resource{
@@ -111,7 +112,7 @@ func doBaseExpansion(d *schema.ResourceData, checkType *pipelineschecks.CheckTyp
 }
 
 // doBaseFlattening performs the flattening for the 'base' attributes that are defined in the schema, above
-func doBaseFlattening(d *schema.ResourceData, check *pipelineschecks.CheckConfiguration, projectID string) error {
+func doBaseFlattening(d *schema.ResourceData, check *pipelineschecks.GenericCheckConfiguration, projectID string) error {
 	d.SetId(fmt.Sprintf("%d", *check.Id))
 
 	d.Set("project_id", projectID)
@@ -138,7 +139,7 @@ func genCheckCreateFunc(flatFunc flatFunc, expandFunc expandFunc) func(d *schema
 			return fmt.Errorf(" failed in expandFunc. Error: %+v", err)
 		}
 
-		createdCheck, err := clients.V5PipelinesChecksClient.AddCheckConfiguration(clients.Ctx, pipelineschecks.AddCheckConfigurationArgs{
+		createdCheck, err := clients.V7PipelinesChecksClientExtras.AddGenericCheckConfiguration(clients.Ctx, pipelineschecksv7.AddGenericCheckConfigurationArgs{
 			Project:       &projectID,
 			Configuration: configuration,
 		})
@@ -162,9 +163,10 @@ func genCheckReadFunc(flatFunc flatFunc) func(d *schema.ResourceData, m interfac
 			return err
 		}
 
-		taskCheck, err := clients.V5PipelinesChecksClientExtras.GetCheckConfiguration(clients.Ctx, pipelineschecks.GetCheckConfigurationArgs{
+		taskCheck, err := clients.V7PipelinesChecksClientExtras.GetGenericCheckConfiguration(clients.Ctx, pipelineschecksv7.GetGenericCheckConfigurationArgs{
 			Project: &projectID,
 			Id:      &taskCheckId,
+			Expand:  &pipelineschecks.CheckConfigurationExpandParameterValues.Settings,
 		})
 
 		if err != nil {
@@ -187,8 +189,8 @@ func genCheckUpdateFunc(flatFunc flatFunc, expandFunc expandFunc) schema.UpdateF
 			return err
 		}
 
-		updatedBusinessHours, err := clients.V5PipelinesChecksClient.UpdateCheckConfiguration(clients.Ctx,
-			pipelineschecks.UpdateCheckConfigurationArgs{
+		updatedBusinessHours, err := clients.V7PipelinesChecksClientExtras.UpdateGenericCheckConfiguration(clients.Ctx,
+			pipelineschecksv7.UpdateGenericCheckConfigurationArgs{
 				Project:       &projectID,
 				Configuration: taskCheck,
 				Id:            taskCheck.Id,
@@ -218,8 +220,8 @@ func genCheckDeleteFunc() schema.DeleteFunc { //nolint:staticcheck
 			return err
 		}
 
-		return clients.V5PipelinesChecksClient.DeleteCheckConfiguration(m.(*client.AggregatedClient).Ctx,
-			pipelineschecks.DeleteCheckConfigurationArgs{
+		return clients.V7PipelinesChecksClientExtras.DeleteGenericCheckConfiguration(m.(*client.AggregatedClient).Ctx,
+			pipelineschecksv7.DeleteGenericCheckConfigurationArgs{
 				Project: &projectID,
 				Id:      &BusinessHoursID,
 			})
